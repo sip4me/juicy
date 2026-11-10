@@ -7,9 +7,15 @@ on:
     branches: ['main', 'backend-camera-recognition']
 
 jobs:
-  publish_preview:
-    name: Publish update to Expo Go
+  publish_ios:
+    name: Publish iPhone update
     type: update
     params:
       branch: preview
-      platform: all
+      platform: ios
+  publish_android:
+    name: Publish Android update
+    type: update
+    params:
+      branch: preview
+      platform: android
