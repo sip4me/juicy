@@ -50,3 +50,22 @@ npm run preview
 ```
 
 This writes `dist/juicy-preview.html`, a self-contained page of the same code that runs in a browser.
+
+## Backend (Supabase)
+
+Project `betvlurcdcqrplzlwltl`. Juicy's tables live in the **`juicy`** schema (the project also holds an older app in `public`).
+
+```
+supabase/migrations/   schema, row-level security, create_post, feeds, ranking cron
+supabase/functions/    recognize-meal (Gemini vision → dish catalog → Juicy score)
+src/lib/supabase.ts    client (publishable key from .env)
+src/lib/newPost.ts     photo → filter + shrink → upload → recognize → create_post; feed loaders
+src/lib/filters.ts     color-matrix filters shared by preview and export
+src/screens/Camera.tsx, EditPhoto.tsx
+```
+
+One-time setup in the Supabase dashboard:
+1. **Project Settings → Data API → Exposed schemas**: add `juicy`.
+2. **Edge Functions → Secrets**: add `GEMINI_API_KEY` (from Google AI Studio).
+
+Camera and Skia need a development build (`npx expo run:ios` or `eas build --profile development`); set `EXPO_PUBLIC_START=camera` to open straight to the camera.
