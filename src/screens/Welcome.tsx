@@ -19,12 +19,36 @@ import { HomeIndicator, StatusBarMock } from '../components/StatusBarMock';
 import { Tooth } from '../components/Tooth';
 import { colors, fonts } from '../theme';
 
-// How far each jaw travels when the mouth is fully open (from the Figma open state).
-const TRAVEL = 178;
+// Jaw offsets from the artboard positions below. Closed: the jaws meet with a
+// small overbite (upper teeth just in front of the lower ones). Open: they part
+// far enough to show the sign-up content.
+const UPPER_CLOSED = 87;
+const UPPER_OPEN = -95;
+const LOWER_CLOSED = -87;
+const LOWER_OPEN = 95;
+const TRAVEL = UPPER_CLOSED - UPPER_OPEN; // 182 px per jaw
 
-// Upper row: 5 big front teeth. Lower row: 6 smaller ones.
-const UPPER = Array.from({ length: 5 }, (_, i) => ({ x: 5 + i * 76, y: 236, w: 72, h: 190 }));
-const LOWER = Array.from({ length: 6 }, (_, i) => ({ x: 4 + i * 64, y: 422, w: 60, h: 176 }));
+const GAP = 4;
+/** Lay a row of teeth out centred on the screen. `bottom` pins lower teeth to their gum line. */
+function row(widths: number[], heights: number[], top: number | null, bottom: number | null) {
+  const total = widths.reduce((a, b) => a + b, 0) + GAP * (widths.length - 1);
+  let x = (390 - total) / 2;
+  return widths.map((w, i) => {
+    const h = heights[i];
+    const t = { x, y: top ?? (bottom as number) - h, w, h };
+    x += w + GAP;
+    return t;
+  });
+}
+
+// Real proportions: wide central incisors, narrower laterals, slightly longer canines.
+// The tops tuck under the upper lip, so roughly the bottom 85–90 px shows.
+const UPPER = row([54, 62, 72, 72, 62, 54], [112, 106, 122, 122, 106, 112], 236, null);
+// Lower teeth are smaller and sit behind the uppers; their roots tuck under the lower lip.
+/** -1 at the left end of a row, 0 in the middle, 1 at the right end. */
+const archPos = (i: number, n: number) => (i - (n - 1) / 2) / ((n - 1) / 2);
+
+const LOWER = row([56, 60, 62, 62, 60, 56], [100, 94, 98, 98, 94, 100], null, 620);
 
 // The whole opening is one spring. Everything else is derived from it, so jaws,
 // lips, mouth and text can never drift out of sync.
@@ -91,8 +115,16 @@ export function Welcome({ onJoin, quickOpen = false }: Props) {
   }, []);
 
   // ---- derived styles ----
-  const upperJaw = useAnimatedStyle(() => ({ transform: [{ translateY: -TRAVEL * p.value }] }));
-  const lowerJaw = useAnimatedStyle(() => ({ transform: [{ translateY: TRAVEL * p.value }] }));
+  const upperJaw = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(p.value, [0, 1], [UPPER_CLOSED, UPPER_OPEN]) }],
+  }));
+  const lowerJaw = useAnimatedStyle(() => ({
+    transform: [{ translateY: interpolate(p.value, [0, 1], [LOWER_CLOSED, LOWER_OPEN]) }],
+  }));
+  // the wordmark rides up with the top lip and fades before it reaches the status bar
+  const wordmark = useAnimatedStyle(() => ({
+    opacity: interpolate(p.value, [0.2, 0.55], [1, 0], Extrapolation.CLAMP),
+  }));
 
   // lips stretch a little while the mouth is mid-open, then relax
   const lipStretch = useAnimatedStyle(() => ({
@@ -103,8 +135,8 @@ export function Welcome({ onJoin, quickOpen = false }: Props) {
   }));
 
   const mouth = useAnimatedStyle(() => ({
-    top: interpolate(p.value, [0, 1], [262, 50], Extrapolation.CLAMP),
-    height: interpolate(p.value, [0, 1], [330, 740], Extrapolation.CLAMP),
+    top: interpolate(p.value, [0, 1], [320, 40], Extrapolation.CLAMP),
+    height: interpolate(p.value, [0, 1], [220, 760], Extrapolation.CLAMP),
   }));
 
   const hint = useAnimatedStyle(() => ({
@@ -151,26 +183,26 @@ export function Welcome({ onJoin, quickOpen = false }: Props) {
         </PressScale>
       </Reveal>
 
-      {/* UPPER JAW */}
-      <Animated.View style={[StyleSheet.absoluteFill, upperJaw]} pointerEvents="none">
-        <Text style={styles.wordmark}>juicy</Text>
-        {UPPER.map((t, i) => (
-          <Tooth key={i} {...t} upper p={p} lag={upperLags[i]} travel={TRAVEL} />
-        ))}
-        <Animated.View style={[StyleSheet.absoluteFill, lipStretch, { transformOrigin: '50% 215px' }]}>
-          <UpperLip />
-        </Animated.View>
-      </Animated.View>
-
-      {/* LOWER JAW */}
+      {/* LOWER JAW (drawn first so the upper teeth overlap it: a natural overbite) */}
       <Animated.View style={[StyleSheet.absoluteFill, lowerJaw]} pointerEvents="none">
         {LOWER.map((t, i) => (
-          <Tooth key={i} {...t} upper={false} p={p} lag={lowerLags[i]} travel={TRAVEL} />
+          <Tooth key={i} {...t} arch={archPos(i, LOWER.length)} upper={false} p={p} lag={lowerLags[i]} travel={TRAVEL} />
         ))}
-        <Animated.View style={[StyleSheet.absoluteFill, lipStretch, { transformOrigin: '50% 645px' }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, lipStretch, { transformOrigin: '50% 645px', zIndex: 20 }]}>
           <LowerLip />
         </Animated.View>
         <Animated.Text style={[styles.hint, hint]}>Open wide…</Animated.Text>
+      </Animated.View>
+
+      {/* UPPER JAW */}
+      <Animated.View style={[StyleSheet.absoluteFill, upperJaw]} pointerEvents="none">
+        <Animated.Text style={[styles.wordmark, wordmark]}>juicy</Animated.Text>
+        {UPPER.map((t, i) => (
+          <Tooth key={i} {...t} arch={archPos(i, UPPER.length)} upper p={p} lag={upperLags[i]} travel={TRAVEL} />
+        ))}
+        <Animated.View style={[StyleSheet.absoluteFill, lipStretch, { transformOrigin: '50% 215px', zIndex: 20 }]}>
+          <UpperLip />
+        </Animated.View>
       </Animated.View>
 
       <HomeIndicator tint={colors.white} />
