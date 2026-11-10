@@ -1,0 +1,15 @@
+# Publishes the app to Expo Go whenever code lands on main or the working branch.
+# Open it on your phone: Expo Go → Projects → juicy (branch "preview").
+name: Publish preview
+
+on:
+  push:
+    branches: ['main', 'backend-camera-recognition']
+
+jobs:
+  publish_preview:
+    name: Publish update to Expo Go
+    type: update
+    params:
+      branch: preview
+      platform: all
