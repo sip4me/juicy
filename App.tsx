@@ -9,13 +9,19 @@ import { Stage } from './src/components/Stage';
 import { Splash } from './src/screens/Splash';
 import { Welcome } from './src/screens/Welcome';
 import { SnackGoblin } from './src/screens/SnackGoblin';
+import { Camera } from './src/screens/Camera';
+import { EditPhoto } from './src/screens/EditPhoto';
 import { colors } from './src/theme';
 
-type Screen = 'splash' | 'welcome' | 'snack';
+type Screen = 'splash' | 'welcome' | 'snack' | 'camera' | 'edit';
+
+// EXPO_PUBLIC_START=camera opens straight to the new-post camera while it's being built.
+const START: Screen = process.env.EXPO_PUBLIC_START === 'camera' ? 'camera' : 'splash';
 
 function Flow() {
-  const [screen, setScreen] = useState<Screen>('splash');
+  const [screen, setScreen] = useState<Screen>(START);
   const [cameBack, setCameBack] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
 
   return (
     <View style={styles.fill}>
@@ -35,6 +41,30 @@ function Flow() {
             onBack={() => {
               setCameBack(true);
               setScreen('welcome');
+            }}
+          />
+        </Animated.View>
+      )}
+      {screen === 'camera' && (
+        <Animated.View key="camera" entering={FadeIn.duration(250)} exiting={FadeOut.duration(200)} style={styles.layer}>
+          <Camera
+            onClose={() => setScreen('welcome')}
+            onCaptured={(uri) => {
+              setPhoto(uri);
+              setScreen('edit');
+            }}
+          />
+        </Animated.View>
+      )}
+      {screen === 'edit' && photo && (
+        <Animated.View key="edit" entering={SlideInRight.duration(320)} exiting={SlideOutRight.duration(260)} style={styles.layer}>
+          <EditPhoto
+            uri={photo}
+            onBack={() => setScreen('camera')}
+            onRecognized={(meal) => {
+              // Next: Details & share-to screen, then publish({ mealId: meal.id, audiences, note, place })
+              console.log('recognized', meal.dish_name, meal.juicy_score);
+              setScreen('camera');
             }}
           />
         </Animated.View>
